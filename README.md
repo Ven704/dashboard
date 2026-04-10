@@ -6,8 +6,9 @@ Deploy on **[Vercel](https://vercel.com)** with server-only credentials.
 
 ## Features
 
-- **Overview** — paper balance, aggregate trade stats (from the loaded sample), recent trades
-- **Trades** — `public.trades` with schema-aligned columns (`profit_loss`, `bet_size`, `status`, …); omits heavy jsonb (`signals`, `mirofish_consensus`) from the grid
+- **Overview** — paper balance, **KPI strip** (net P&L, profit factor, expectancy, open exposure, win rate, confidence), **chart preview** (cumulative P&L + asset bars), recent trades, quick links
+- **Analytics** — full **Recharts** board: cumulative P&L curve, P&L by hour (UTC), asset / strategy / interval / weekday, direction pie; KPIs aligned with common trading dashboards (profit factor, expectancy, largest win/loss)
+- **Trades** — filters (**status, asset, strategy, direction**), search, **CSV export**, schema-aligned columns; omits heavy jsonb (`signals`, `mirofish_consensus`) from the grid
 - **Reviews** — `review_reports` (scalar columns; large jsonb fields not selected)
 - **Patterns**, **Signals**, **Strategy**, **Wallets** — matching tables with filterable tables
 

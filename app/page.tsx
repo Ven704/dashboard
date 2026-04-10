@@ -1,15 +1,23 @@
 import Link from "next/link";
 
 import ConnectPrompt from "@/components/ConnectPrompt";
+import OverviewMiniCharts from "@/components/analytics/OverviewMiniCharts";
 import MetricCard from "@/components/MetricCard";
+import PageHeader from "@/components/PageHeader";
 import TradesTable from "@/components/TradesTable";
+import { computeTradeAnalytics } from "@/lib/analytics/tradeAnalytics";
 import { missingCredentialsError } from "@/lib/data/types";
 import {
   fetchPaperBalance,
   fetchTradesForDashboard,
 } from "@/lib/data/queries";
 import { env } from "@/lib/env";
-import { formatInt, formatPercent, formatUsd } from "@/lib/format";
+import {
+  formatInt,
+  formatPercent,
+  formatProfitFactor,
+  formatUsd,
+} from "@/lib/format";
 import { computeMetrics } from "@/lib/trades/metrics";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +38,9 @@ const OverviewPage = async () => {
   const tradesErr = !tradesR.ok ? tradesR.error : null;
 
   const metrics = computeMetrics(trades);
+  const analytics = computeTradeAnalytics(trades);
+  const updatedAt = new Date().toISOString().replace("T", " ").slice(0, 19);
+
   const previewColumns = [
     "created_at",
     "asset",
@@ -51,17 +62,26 @@ const OverviewPage = async () => {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
-      <header className="mb-8 border-b border-[var(--border)] pb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">
-          Overview
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
-          Data from the same Supabase project as{" "}
-          <span className="font-mono text-zinc-400">Ven704/polymarket-bot</span>
-          : paper balance, trade load ({formatInt(trades.length)} rows), and
-          quick metrics. Open sections in the nav for full tables.
-        </p>
-      </header>
+      <PageHeader
+        title="Overview"
+        description="Command center for Ven704/polymarket-bot: paper balance, risk snapshot, performance KPIs on the loaded trade sample, and quick charts. Open Analytics for the full breakdown."
+        updatedAtLabel={`${updatedAt} UTC`}
+      />
+
+      <div className="mb-8 flex flex-wrap gap-3">
+        <Link
+          href="/analytics"
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500"
+        >
+          Open full analytics
+        </Link>
+        <Link
+          href="/trades"
+          className="rounded-lg border border-zinc-600 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-400"
+        >
+          Trades & CSV export
+        </Link>
+      </div>
 
       {tradesErr ? (
         <p
@@ -80,10 +100,7 @@ const OverviewPage = async () => {
         </p>
       ) : null}
 
-      <section
-        className="mb-10"
-        aria-label="Paper trading balance"
-      >
+      <section className="mb-10" aria-label="Paper trading balance">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
           Paper balance
         </h2>
@@ -95,6 +112,7 @@ const OverviewPage = async () => {
                 ? formatUsd(Number(paper.current_balance))
                 : "—"
             }
+            variant="accent"
           />
           <MetricCard
             label="Starting balance"
@@ -124,6 +142,7 @@ const OverviewPage = async () => {
                 ? formatUsd(Number(paper.best_win))
                 : "—"
             }
+            variant="profit"
           />
           <MetricCard
             label="Worst loss"
@@ -132,51 +151,78 @@ const OverviewPage = async () => {
                 ? formatUsd(Number(paper.worst_loss))
                 : "—"
             }
+            variant="loss"
           />
         </div>
       </section>
 
-      <section className="mb-10" aria-label="Trade metrics snapshot">
+      <section className="mb-10" aria-label="Performance KPIs">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
-          Trades snapshot
+          Performance (loaded sample)
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
-            label="Rows loaded"
-            value={formatInt(metrics.totalTrades)}
-            hint={`Limit ${formatInt(env.fetchLimit())} (TRADES_FETCH_LIMIT)`}
+            label="Net P&L (resolved)"
+            value={formatUsd(analytics.netPnl)}
+            variant={analytics.netPnl >= 0 ? "profit" : "loss"}
+            hint={`${formatInt(analytics.resolvedCount)} resolved`}
           />
           <MetricCard
-            label="Open positions"
-            value={formatInt(metrics.openTrades)}
+            label="Profit factor"
+            value={formatProfitFactor(
+              analytics.profitFactor,
+              analytics.grossProfit,
+              analytics.grossLossAbs,
+            )}
+            variant="accent"
+          />
+          <MetricCard
+            label="Win rate"
+            value={
+              analytics.winRate === null
+                ? "—"
+                : formatPercent(analytics.winRate)
+            }
+          />
+          <MetricCard
+            label="Expectancy / trade"
+            value={
+              analytics.expectancy === null
+                ? "—"
+                : formatUsd(analytics.expectancy)
+            }
+          />
+          <MetricCard
+            label="Open exposure"
+            value={formatUsd(analytics.openNotional)}
+            subValue={`${formatInt(analytics.openCount)} open`}
+            variant="warn"
+          />
+          <MetricCard
+            label="Rows / limit"
+            value={formatInt(metrics.totalTrades)}
+            hint={`Cap ${formatInt(env.fetchLimit())} · TRADES_FETCH_LIMIT`}
           />
           <MetricCard
             label="Last 24h / 7d"
             value={`${formatInt(metrics.tradesLast24h)} / ${formatInt(metrics.tradesLast7d)}`}
           />
           <MetricCard
-            label="Notional (loaded rows)"
+            label="Avg confidence"
             value={
-              metrics.sumNotional === null
+              analytics.avgConfidence === null
                 ? "—"
-                : formatUsd(metrics.sumNotional)
+                : formatPercent(analytics.avgConfidence)
             }
-            hint="Sum of bet_size in loaded sample"
-          />
-          <MetricCard
-            label="Win rate (resolved in sample)"
-            value={
-              metrics.winRate === null ? "—" : formatPercent(metrics.winRate)
-            }
-          />
-          <MetricCard
-            label="P&L sum (resolved in sample)"
-            value={
-              metrics.sumPnl === null ? "—" : formatUsd(metrics.sumPnl)
-            }
-            hint="Uses profit_loss on closed trades in this sample"
           />
         </div>
+      </section>
+
+      <section className="mb-10" aria-label="Charts preview">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          Charts preview
+        </h2>
+        <OverviewMiniCharts data={analytics} />
       </section>
 
       <section aria-label="Recent trades">
@@ -188,7 +234,7 @@ const OverviewPage = async () => {
           columnKeys={[...previewColumns]}
         />
         <p className="mt-3 text-sm text-[var(--muted)]">
-          Full history and columns (incl. market_id, odds, reasoning) on{" "}
+          Filters, full columns, and CSV export on{" "}
           <Link
             href="/trades"
             className="text-emerald-400 underline-offset-2 hover:underline"

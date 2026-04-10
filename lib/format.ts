@@ -23,3 +23,13 @@ export const formatCellDisplay = (value: unknown, maxLen = 72): string => {
   }
   return String(value);
 };
+
+export const formatProfitFactor = (
+  pf: number | null,
+  grossProfit: number,
+  grossLossAbs: number,
+): string => {
+  if (pf !== null && Number.isFinite(pf)) return pf.toFixed(2);
+  if (grossLossAbs === 0 && grossProfit > 0) return "∞";
+  return "—";
+};

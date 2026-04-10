@@ -8,12 +8,22 @@ import type { TradeRow } from "@/types/trade";
 type TradesTableProps = {
   trades: TradeRow[];
   columnKeys: string[];
+  hideSearch?: boolean;
+  title?: string;
+  totalHint?: string;
 };
 
-const TradesTable = ({ trades, columnKeys }: TradesTableProps) => {
+const TradesTable = ({
+  trades,
+  columnKeys,
+  hideSearch = false,
+  title = "Trades",
+  totalHint,
+}: TradesTableProps) => {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
+    if (hideSearch) return trades;
     const q = query.trim().toLowerCase();
     if (!q) return trades;
     return trades.filter((t) => {
@@ -24,11 +34,17 @@ const TradesTable = ({ trades, columnKeys }: TradesTableProps) => {
         blob.includes(q)
       );
     });
-  }, [trades, query]);
+  }, [trades, query, hideSearch]);
 
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
   };
+
+  const subtitle = totalHint
+    ? `Showing ${filtered.length} rows · ${totalHint}`
+    : hideSearch
+      ? `Showing ${filtered.length} rows`
+      : `Showing ${filtered.length} of ${trades.length} loaded rows`;
 
   return (
     <section className="space-y-4" aria-labelledby="trades-heading">
@@ -38,26 +54,26 @@ const TradesTable = ({ trades, columnKeys }: TradesTableProps) => {
             id="trades-heading"
             className="text-lg font-semibold text-[var(--foreground)]"
           >
-            Trades
+            {title}
           </h2>
-          <p className="text-sm text-[var(--muted)]">
-            Showing {filtered.length} of {trades.length} loaded rows
-          </p>
+          <p className="text-sm text-[var(--muted)]">{subtitle}</p>
         </div>
-        <label className="flex w-full flex-col gap-1 sm:max-w-sm">
-          <span className="text-xs font-medium text-[var(--muted)]">
-            Filter
-          </span>
-          <input
-            type="search"
-            value={query}
-            onChange={handleQueryChange}
-            placeholder="Search id, time, market, side…"
-            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] outline-none ring-green-500/40 placeholder:text-zinc-500 focus:ring-2"
-            aria-label="Filter trades"
-            autoComplete="off"
-          />
-        </label>
+        {!hideSearch ? (
+          <label className="flex w-full flex-col gap-1 sm:max-w-sm">
+            <span className="text-xs font-medium text-[var(--muted)]">
+              Filter
+            </span>
+            <input
+              type="search"
+              value={query}
+              onChange={handleQueryChange}
+              placeholder="Search id, time, market, side…"
+              className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] outline-none ring-green-500/40 placeholder:text-zinc-500 focus:ring-2"
+              aria-label="Filter trades"
+              autoComplete="off"
+            />
+          </label>
+        ) : null}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
